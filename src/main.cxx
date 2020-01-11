@@ -9,6 +9,11 @@
 #include<itkGDCMSeriesFileNames.h>
 #include<itkNumericSeriesFileNames.h>
 
+#include<itkRescaleIntensityImageFilter.h>
+#include<itkGradientAnisotropicDiffusionImageFilter.h>
+#include<itkLaplacianSharpeningImageFilter.h>
+#include<itkHistogramMatchingImageFilter.h>
+
 #pragma region GlobalTypeDefinitions
 typedef std::string string;
 typedef signed short PixelType;
@@ -55,14 +60,16 @@ typename ImageType::Pointer ReadImage(string pathToImages) {
 	return seriesReader->GetOutput();
 }
 
-void SaveImage(ImageType::Pointer resultImage, string pathToResults) {
+void SaveImage(ImageType::Pointer resultImage, string pathToResults, string fileName) {
 
 	typedef itk::ImageFileWriter<ImageType>WriterType;
 
 	WriterType::Pointer seriesWriter = WriterType::New();
 	seriesWriter->SetInput(resultImage);
-	seriesWriter->SetFileName(pathToResults + "/seriaWolumen.vtk");
+	seriesWriter->SetFileName(pathToResults + "/"+ fileName+".vtk");
 	seriesWriter->Update();
+
+	std::cout << "Zapisano obraz o nazwie: " << fileName << "\t\n";
 }
 
 
@@ -72,20 +79,49 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults) {
 
 typename ImageType::Pointer AnisotrophyDyfusion(ImageType::Pointer image) {
 
+	unsigned int numberOfIteration = 10;
+	double conductanceParameter = 2;
+	double timeStep = 0.125;
 
-	return image;
+	using FilterType = itk::GradientAnisotropicDiffusionImageFilter<ImageType, ImageType>;
+	FilterType::Pointer filter = FilterType::New();
+	filter->SetInput(image);
+	filter->SetNumberOfIterations(numberOfIteration);
+	filter->SetTimeStep(timeStep);
+	filter->SetConductanceParameter(conductanceParameter);
+	filter->Update();
+
+	return filter->GetOutput();
 }
 
 typename ImageType::Pointer ImageSharpening(ImageType::Pointer image) {
 
+	using LaplacianSharpeningFilter = itk::LaplacianSharpeningImageFilter<ImageType, ImageType>;
+	LaplacianSharpeningFilter::Pointer filter = LaplacianSharpeningFilter::New();
 
-	return image;
+	filter->SetInput(image);
+	filter->Update();
+
+	return filter->GetOutput();
 }
 
 typename ImageType::Pointer HistogramMatching(ImageType::Pointer image) {
 
+	using HistogramMatching = itk::HistogramMatchingImageFilter<ImageType, ImageType, ImageType::PixelType>;
+	HistogramMatching::Pointer filter = HistogramMatching::New();
+	filter->SetInput(image);
+	filter->SetReferenceImage(image);
 
-	return image;
+	filter->ThresholdAtMeanIntensityOn(); //W³¹cza metodê wykluczania t³a. Histogram referencyjny zwrócony z tego filtra rozszerzy pierwsz¹ i ostatni¹ granicê bin, 
+	//aby obj¹æ minimalne i maksymalne wartoœci intensywnoœci ca³ego obrazu referencyjnego, ale do wype³nienia histogramu zostan¹ u¿yte tylko 
+	//wartoœci intensywnoœci wiêksze ni¿ œrednia.
+
+	filter->SetNumberOfHistogramLevels(5); //ustawia liczbê pojemników u¿ywanych podczas tworzenia histogramów obrazów Ÿród³owych i referencyjnych.
+	filter->SetNumberOfMatchPoints(5); // reguluje liczbê dopasowywanych wartoœci kwantyli.
+
+	
+	filter->Update();
+	return filter->GetOutput();
 }
 
 #pragma endregion
@@ -131,7 +167,16 @@ int main(int argc, char *argv[]) {
 		int z = std::atoi(argv[5]);
 
 		ImageType::Pointer image = ReadImage(pathToImages);
-		SaveImage(image, pathToResults);
+		SaveImage(image, pathToResults, "obraz_wejsciowy");
+
+		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
+		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
+
+		ImageType::Pointer imageSharped = ImageSharpening(image);
+		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
+
+		ImageType::Pointer histogramMatched = HistogramMatching(image);
+		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
 
 	}
 	catch (itk::ExceptionObject &ex) {
@@ -139,7 +184,6 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	std::cout << "Sukces!";
 	std::cin.get();
 	return EXIT_SUCCESS;
 }

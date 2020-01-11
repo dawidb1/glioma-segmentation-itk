@@ -9,9 +9,11 @@
 #include<itkGDCMSeriesFileNames.h>
 #include<itkNumericSeriesFileNames.h>
 
+#pragma region GlobalTypeDefinitions
 typedef std::string string;
 typedef signed short PixelType;
 typedef itk::Image<PixelType, 3> ImageType;
+#pragma endregion
 
 typename ImageType::Pointer ReadImage(string pathToImages) {
 
@@ -46,11 +48,29 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults) {
 	seriesWriter->Update();
 }
 
+bool ValidateArguments(int argc, char *argv[]) {
+	if (argc < 5) {
+		std::cout << "Za ma³o argumentów wejœciowych \t\n";
+		std::cout << "Argumenty: \t\n";
+		std::cout << "- sciezka do folderu z seri¹ plików DICOM \t\n";
+		std::cout << "- sciezka do folderu wynikowego \t\n";
+		std::cout << "- punkty startowe segmentacji x,y,z \t\n";
+		return false;
+	}
+}
+
 int main(int argc, char *argv[]) {
 
+	if (!ValidateArguments(argc, argv)) {
+		return EXIT_FAILURE;
+	}
+
 	try {
-		string pathToImages = "../dane";
-		string pathToResults = "../wyniki/";
+		string pathToImages = argv[1];
+		string pathToResults = argv[2];
+		int x = std::atoi(argv[3]);
+		int y = std::atoi(argv[4]);
+		int z = std::atoi(argv[5]);
 
 		ImageType::Pointer image = ReadImage(pathToImages);
 		SaveImage(image, pathToResults);
@@ -58,9 +78,10 @@ int main(int argc, char *argv[]) {
 	}
 	catch (itk::ExceptionObject &ex) {
 		ex.Print(std::cout);
+		return EXIT_FAILURE;
 	}
 
-	std::cout << "Hit [Enter]...";
+	std::cout << "Sukces!";
 	std::cin.get();
 	return EXIT_SUCCESS;
 }

@@ -105,12 +105,12 @@ typename ImageType::Pointer ImageSharpening(ImageType::Pointer image) {
 	return filter->GetOutput();
 }
 
-typename ImageType::Pointer HistogramMatching(ImageType::Pointer image) {
+typename ImageType::Pointer HistogramMatching(ImageType::Pointer image, ImageType::Pointer referenceImage) {
 
 	using HistogramMatching = itk::HistogramMatchingImageFilter<ImageType, ImageType, ImageType::PixelType>;
 	HistogramMatching::Pointer filter = HistogramMatching::New();
 	filter->SetInput(image);
-	filter->SetReferenceImage(image);
+	filter->SetReferenceImage(referenceImage);
 
 	filter->ThresholdAtMeanIntensityOn(); //W³¹cza metodê wykluczania t³a. Histogram referencyjny zwrócony z tego filtra rozszerzy pierwsz¹ i ostatni¹ granicê bin, 
 	//aby obj¹æ minimalne i maksymalne wartoœci intensywnoœci ca³ego obrazu referencyjnego, ale do wype³nienia histogramu zostan¹ u¿yte tylko 
@@ -172,10 +172,10 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
 		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
 
-		ImageType::Pointer imageSharped = ImageSharpening(image);
+		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
 		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
-		ImageType::Pointer histogramMatched = HistogramMatching(image);
+		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
 		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
 
 	}

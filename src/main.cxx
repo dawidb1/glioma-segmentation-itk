@@ -15,6 +15,23 @@ typedef signed short PixelType;
 typedef itk::Image<PixelType, 3> ImageType;
 #pragma endregion
 
+#pragma region InputArgumentsValidation
+
+bool ValidateArguments(int argc, char *argv[]) {
+	if (argc < 5) {
+		std::cout << "Za ma³o argumentów wejœciowych \t\n";
+		std::cout << "Argumenty: \t\n";
+		std::cout << "- sciezka do folderu z seri¹ plików DICOM \t\n";
+		std::cout << "- sciezka do folderu wynikowego \t\n";
+		std::cout << "- punkty startowe segmentacji x,y,z \t\n";
+		return false;
+	}
+}
+
+#pragma endregion
+
+#pragma region ReadWriteMethods
+
 typename ImageType::Pointer ReadImage(string pathToImages) {
 
 	typedef itk::ImageSeriesReader<ImageType> ReaderTypeSeries;
@@ -48,16 +65,57 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults) {
 	seriesWriter->Update();
 }
 
-bool ValidateArguments(int argc, char *argv[]) {
-	if (argc < 5) {
-		std::cout << "Za ma³o argumentów wejœciowych \t\n";
-		std::cout << "Argumenty: \t\n";
-		std::cout << "- sciezka do folderu z seri¹ plików DICOM \t\n";
-		std::cout << "- sciezka do folderu wynikowego \t\n";
-		std::cout << "- punkty startowe segmentacji x,y,z \t\n";
-		return false;
-	}
+
+#pragma endregion
+
+#pragma region Preprocessing
+
+typename ImageType::Pointer AnisotrophyDyfusion(ImageType::Pointer image) {
+
+
+	return image;
 }
+
+typename ImageType::Pointer ImageSharpening(ImageType::Pointer image) {
+
+
+	return image;
+}
+
+typename ImageType::Pointer HistogramMatching(ImageType::Pointer image) {
+
+
+	return image;
+}
+
+#pragma endregion
+
+#pragma region Segmentation
+
+typename ImageType::Pointer RegionGrowing(ImageType::Pointer image) {
+
+
+	return image;
+}
+
+#pragma endregion
+
+#pragma region PostProcessing
+
+typename ImageType::Pointer BinaryOpen(ImageType::Pointer image) {
+
+
+	return image;
+}
+
+typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
+
+
+	return image;
+}
+
+#pragma endregion
+
 
 int main(int argc, char *argv[]) {
 

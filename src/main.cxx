@@ -14,6 +14,10 @@
 #include<itkLaplacianSharpeningImageFilter.h>
 #include<itkHistogramMatchingImageFilter.h>
 
+#include<itkConnectedThresholdImageFilter.h>
+#include<itkConfidenceConnectedImageFilter.h>
+#include<itkRegionGrowImageFilter.h>
+
 #pragma region GlobalTypeDefinitions
 typedef std::string string;
 typedef signed short PixelType;
@@ -128,10 +132,39 @@ typename ImageType::Pointer HistogramMatching(ImageType::Pointer image, ImageTyp
 
 #pragma region Segmentation
 
-typename ImageType::Pointer RegionGrowing(ImageType::Pointer image) {
+typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, int y, int z) {
 
+	using ConnectedFilterType = itk::ConnectedThresholdImageFilter<ImageType, ImageType>;
+	ConnectedFilterType::Pointer connectedThreshold = ConnectedFilterType::New();
+	connectedThreshold->SetInput(image);
+	connectedThreshold->SetLower(50);
+	connectedThreshold->SetUpper(150);
+	ImageType::IndexType index;
+	index[0] = x;
+	index[1] = y;
+	index[2] = z;
+	connectedThreshold->SetSeed(index);
+	connectedThreshold->SetReplaceValue(255);
+	connectedThreshold->Update();
+	return connectedThreshold->GetOutput();
+}
 
-	return image;
+typename ImageType::Pointer ConfidenceConnected(ImageType::Pointer image, int x, int y, int z) {
+
+	using ConfidenceConnectedFilterType = itk::ConfidenceConnectedImageFilter<ImageType, ImageType>;
+	ConfidenceConnectedFilterType::Pointer confidenceConnectedFilter = ConfidenceConnectedFilterType::New();
+	confidenceConnectedFilter->SetInitialNeighborhoodRadius(3);
+	confidenceConnectedFilter->SetMultiplier(2);
+	confidenceConnectedFilter->SetNumberOfIterations(30);
+	confidenceConnectedFilter->SetReplaceValue(255);
+	ImageType::IndexType index;
+	index[0] = x;
+	index[1] = y;
+	index[2] = z;
+	confidenceConnectedFilter->SetSeed(index);
+	confidenceConnectedFilter->SetInput(image);
+	confidenceConnectedFilter->Update();
+	return confidenceConnectedFilter->GetOutput();
 }
 
 #pragma endregion
@@ -169,14 +202,21 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer image = ReadImage(pathToImages);
 		SaveImage(image, pathToResults, "obraz_wejsciowy");
 
-		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
-		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
+		/*ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
+		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");*/
 
-		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
+		ImageType::Pointer imageSharped = ImageSharpening(image);
 		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
 		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
 		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
+
+		
+		ImageType::Pointer connectedThreshold = ConnectedThreshold(image, x, y, z);
+		SaveImage(connectedThreshold, pathToResults, "obraz_po_segmentacji_connectedthreshold");
+
+		ImageType::Pointer confidenceConnected = ConfidenceConnected(image, x, y, z);
+		SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");
 
 	}
 	catch (itk::ExceptionObject &ex) {

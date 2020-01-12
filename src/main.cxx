@@ -1,22 +1,26 @@
+//General
 #include <iostream> // std::cout, std::cin
 #include <string> // std::string
 #include <itkImage.h> // itk::Image
-
+//Read Write
 #include<itkImageSeriesReader.h>
 #include<itkImageSeriesWriter.h>
 #include<itkGDCMImageIO.h>
-
 #include<itkGDCMSeriesFileNames.h>
 #include<itkNumericSeriesFileNames.h>
-
+//Preprocessing
 #include<itkRescaleIntensityImageFilter.h>
 #include<itkGradientAnisotropicDiffusionImageFilter.h>
 #include<itkLaplacianSharpeningImageFilter.h>
 #include<itkHistogramMatchingImageFilter.h>
-
+//Segmentation
 #include<itkConnectedThresholdImageFilter.h>
 #include<itkConfidenceConnectedImageFilter.h>
 #include<itkRegionGrowImageFilter.h>
+//Postprocessing
+#include<itkBinaryBallStructuringElement.h>
+#include<itkBinaryMorphologicalClosingImageFilter.h>
+#include<itkBinaryMorphologicalOpeningImageFilter.h>
 
 #pragma region GlobalTypeDefinitions
 typedef std::string string;
@@ -173,14 +177,38 @@ typename ImageType::Pointer ConfidenceConnected(ImageType::Pointer image, int x,
 
 typename ImageType::Pointer BinaryOpen(ImageType::Pointer image) {
 
+	int radius = 5;
 
-	return image;
+	using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
+	StructuringElementType structuringElement;
+	structuringElement.SetRadius(radius);
+	structuringElement.CreateStructuringElement();
+
+	using BinaryMorphologicalOpeningImageFilterType = itk::BinaryMorphologicalOpeningImageFilter<ImageType, ImageType, StructuringElementType>;
+	BinaryMorphologicalOpeningImageFilterType::Pointer openingFilter = BinaryMorphologicalOpeningImageFilterType::New();
+	openingFilter->SetInput(image);
+	openingFilter->SetKernel(structuringElement);
+	openingFilter->Update();
+
+	return openingFilter->GetOutput();
 }
 
 typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 
+	int radius = 5;
 
-	return image;
+	using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
+	StructuringElementType structuringElement;
+	structuringElement.SetRadius(radius);
+	structuringElement.CreateStructuringElement();
+
+	using BinaryMorphologicalClosingImageFilterType = itk::BinaryMorphologicalClosingImageFilter<ImageType, ImageType, StructuringElementType>;
+	BinaryMorphologicalClosingImageFilterType::Pointer closingFilter = BinaryMorphologicalClosingImageFilterType::New();
+	closingFilter->SetInput(image);
+	closingFilter->SetKernel(structuringElement);
+	closingFilter->Update();
+
+	return closingFilter->GetOutput();
 }
 
 #pragma endregion
@@ -215,8 +243,15 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer connectedThreshold = ConnectedThreshold(image, x, y, z);
 		SaveImage(connectedThreshold, pathToResults, "obraz_po_segmentacji_connectedthreshold");
 
-		ImageType::Pointer confidenceConnected = ConfidenceConnected(image, x, y, z);
+		ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
 		SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");
+
+
+		ImageType::Pointer binaryOpen = BinaryOpen(connectedThreshold);
+		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+
+		ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
+		SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
 
 	}
 	catch (itk::ExceptionObject &ex) {

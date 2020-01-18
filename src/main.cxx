@@ -67,7 +67,7 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image);
 
 // walidacja
 typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image);
-int DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
+double DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
 
 int main(int argc, char *argv[]) {
 
@@ -341,7 +341,7 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 
 #pragma region Walidacja
 
-int DiceResult(ImageType::Pointer segmented, ImageType::Pointer originMask) {
+double DiceResult(ImageType::Pointer segmented, ImageType::Pointer originMask) {
 
 	ImageType::Pointer rescaledMask = RescaleBinaryMaskTo255(originMask);
 	itk::LabelOverlapMeasuresImageFilter<ImageType>::Pointer overlap_filter = itk::LabelOverlapMeasuresImageFilter<ImageType>::New();

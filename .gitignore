@@ -1,4 +1,7 @@
 /build/*
+/dane/*
+/wyniki/*
+/test_mask/*
 
 # Prerequisites
 *.d

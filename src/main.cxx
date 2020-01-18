@@ -21,6 +21,8 @@
 #include<itkBinaryBallStructuringElement.h>
 #include<itkBinaryMorphologicalClosingImageFilter.h>
 #include<itkBinaryMorphologicalOpeningImageFilter.h>
+//DICE
+#include<itkLabelOverlapMeasuresImageFilter.h>
 
 #pragma region GlobalTypeDefinitions
 typedef std::string string;
@@ -62,6 +64,8 @@ typename ImageType::Pointer ConfidenceConnected(ImageType::Pointer image, int x,
 typename ImageType::Pointer BinaryOpen(ImageType::Pointer image);
 typename ImageType::Pointer BinaryClose(ImageType::Pointer image);
 
+// walidacja
+int DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
 
 int main(int argc, char *argv[]) {
 
@@ -72,12 +76,23 @@ int main(int argc, char *argv[]) {
 	try {
 		string pathToImages = argv[1];
 		string pathToResults = argv[2];
+
 		int x = std::atoi(argv[3]);
 		int y = std::atoi(argv[4]);
 		int z = std::atoi(argv[5]);
+		string pathToMasks;
+		ImageType::Pointer mask;
+
+		if (argc == 7)
+		{
+			pathToMasks = argv[6];
+			mask = ReadImage(pathToMasks);
+			SaveImage(mask, pathToResults, "maski_obrazu");
+		}
 
 		ImageType::Pointer image = ReadImage(pathToImages);
 		SaveImage(image, pathToResults, "obraz_wejsciowy");
+
 
 		/*ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
 		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");*/
@@ -91,16 +106,22 @@ int main(int argc, char *argv[]) {
 
 		ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z);
 		SaveImage(connectedThreshold, pathToResults, "obraz_po_segmentacji_connectedthreshold");
-		/*
-				ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
-				SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");
+
+		/*		ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
+				SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
 
 
-				ImageType::Pointer binaryOpen = BinaryOpen(connectedThreshold);
+				/*ImageType::Pointer binaryOpen = BinaryOpen(connectedThreshold);
 				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
 
 				ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
 				SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");*/
+
+		if (!pathToMasks.empty())
+		{
+			double diceResult = DiceResult(connectedThreshold, mask);
+			std::cout << "Zapisano obraz o nazwie: " << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
+		}
 
 	}
 	catch (itk::ExceptionObject &ex) {
@@ -218,10 +239,10 @@ typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, 
 	connectedThreshold->SetReplaceValue(255);
 
 	int low = 190;
-	int up = 200;
+	int up = 215;
 
 	// best 190/215
-	for (size_t i = 0; i < 10; i++)
+	for (size_t i = 0; i < 1; i++)
 	{
 		connectedThreshold->SetLower(low);
 		connectedThreshold->SetUpper(up);
@@ -278,22 +299,51 @@ typename ImageType::Pointer BinaryOpen(ImageType::Pointer image) {
 
 typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 
-	int radius = 5;
+	int radius = 1;
 
+	//using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
+	//StructuringElementType structuringElement;
+	//structuringElement.SetRadius(radius);
+	//structuringElement.CreateStructuringElement();
+
+	//using BinaryMorphologicalClosingImageFilterType = itk::BinaryMorphologicalClosingImageFilter<ImageType, ImageType, StructuringElementType>;
+	//BinaryMorphologicalClosingImageFilterType::Pointer closingFilter = BinaryMorphologicalClosingImageFilterType::New();
+	//closingFilter->SetInput(image);
+	//closingFilter->SetKernel(structuringElement);
+	//closingFilter->Update();
 	using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
 	StructuringElementType structuringElement;
-	structuringElement.SetRadius(radius);
-	structuringElement.CreateStructuringElement();
 
 	using BinaryMorphologicalClosingImageFilterType = itk::BinaryMorphologicalClosingImageFilter<ImageType, ImageType, StructuringElementType>;
 	BinaryMorphologicalClosingImageFilterType::Pointer closingFilter = BinaryMorphologicalClosingImageFilterType::New();
-	closingFilter->SetInput(image);
-	closingFilter->SetKernel(structuringElement);
-	closingFilter->Update();
+
+	for (size_t i = 0; i < 1; i++)
+	{
+		structuringElement.SetRadius(radius);
+		structuringElement.CreateStructuringElement();
+
+		closingFilter->SetInput(image);
+		closingFilter->SetKernel(structuringElement);
+		closingFilter->Update();
+
+		SaveImage(closingFilter->GetOutput(), "..\\wyniki\\1", "obraz_po_domknieciu_" + std::to_string(radius));
+
+		//low += 10;
+		radius += 1;
+	}
 
 	return closingFilter->GetOutput();
 }
 
 #pragma endregion
 
+#pragma region Walidacja
+int DiceResult(ImageType::Pointer image1, ImageType::Pointer image2) {
+	itk::LabelOverlapMeasuresImageFilter<ImageType>::Pointer overlap_filter = itk::LabelOverlapMeasuresImageFilter<ImageType>::New();
+	overlap_filter->SetInput(0, image1);
+	overlap_filter->SetInput(1, image2);
+	overlap_filter->Update();
+	return overlap_filter->GetDiceCoefficient();
+}
 
+#pragma endregion

@@ -95,11 +95,10 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer image = ReadImage(pathToImages);
 		SaveImage(image, pathToResults, "obraz_wejsciowy");
 
+		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
+		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
 
-		/*ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
-		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");*/
-
-		ImageType::Pointer imageSharped = ImageSharpening(image);
+		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
 		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
 		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
@@ -113,18 +112,18 @@ int main(int argc, char *argv[]) {
 				SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
 
 
-				/*ImageType::Pointer binaryOpen = BinaryOpen(connectedThreshold);
-				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+		ImageType::Pointer binaryOpen = BinaryOpen(connectedThreshold);
+		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
 
-				ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
-				SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");*/
+		ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
+		SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
 
 		if (!pathToMasks.empty())
 		{
-			double diceResult = DiceResult(connectedThreshold, mask);
-			std::cout << "Zapisano obraz o nazwie: " << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
+			double diceResult = DiceResult(binaryClose, mask);
+			std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
 		}
-
+		std::cout << "Koniec" << std::endl;
 	}
 	catch (itk::ExceptionObject &ex) {
 		ex.Print(std::cout);
@@ -179,9 +178,9 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults, string file
 
 typename ImageType::Pointer AnisotrophyDyfusion(ImageType::Pointer image) {
 
-	unsigned int numberOfIteration = 10;
-	double conductanceParameter = 2;
-	double timeStep = 0.125;
+	unsigned int numberOfIteration = 5; // typically set to 5;
+	double conductanceParameter = 8;
+	double timeStep = 0.02; // Typical values for the time step are 0.25 in 2D images and 0.125 in 3D images. T
 
 	using FilterType = itk::GradientAnisotropicDiffusionImageFilter<ImageType, ImageType>;
 	FilterType::Pointer filter = FilterType::New();
@@ -216,7 +215,7 @@ typename ImageType::Pointer HistogramMatching(ImageType::Pointer image, ImageTyp
 	//aby obj¹æ minimalne i maksymalne wartoœci intensywnoœci ca³ego obrazu referencyjnego, ale do wype³nienia histogramu zostan¹ u¿yte tylko 
 	//wartoœci intensywnoœci wiêksze ni¿ œrednia.
 
-	filter->SetNumberOfHistogramLevels(10); //ustawia liczbê pojemników u¿ywanych podczas tworzenia histogramów obrazów Ÿród³owych i referencyjnych.
+	filter->SetNumberOfHistogramLevels(1024); //ustawia liczbê pojemników u¿ywanych podczas tworzenia histogramów obrazów Ÿród³owych i referencyjnych.
 	filter->SetNumberOfMatchPoints(10); // reguluje liczbê dopasowywanych wartoœci kwantyli.
 
 
@@ -240,8 +239,8 @@ typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, 
 	connectedThreshold->SetSeed(index);
 	connectedThreshold->SetReplaceValue(255);
 
-	int low = 190;
-	int up = 215;
+	int low = 150;
+	int up = 245;
 
 	// best 190/215
 	for (size_t i = 0; i < 1; i++)
@@ -252,8 +251,8 @@ typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, 
 		connectedThreshold->Update();
 		SaveImage(connectedThreshold->GetOutput(), "..\\wyniki\\1", "obraz_po_segmentacji_connectedthreshold_" + std::to_string(low) + std::to_string(up));
 
-		//low += 10;
-		up += 5;
+		//low += 5;
+		up += 10;
 	}
 
 	return connectedThreshold->GetOutput();

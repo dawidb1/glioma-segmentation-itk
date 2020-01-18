@@ -29,24 +29,6 @@
 typedef std::string string;
 typedef signed short PixelType;
 typedef itk::Image<PixelType, 3> ImageType;
-#pragma endregion
-
-#pragma region InputArgumentsValidation
-
-bool ValidateArguments(int argc, char *argv[]) {
-	if (argc < 5) {
-		std::cout << "Za ma³o argumentów wejœciowych \t\n";
-		std::cout << "Argumenty: \t\n";
-		std::cout << "- sciezka do folderu z seri¹ plików DICOM \t\n";
-		std::cout << "- sciezka do folderu wynikowego \t\n";
-		std::cout << "- punkty startowe segmentacji x,y,z \t\n";
-		return false;
-	}
-}
-
-#pragma endregion
-
-#pragma region ReadWriteMethods
 
 // IO
 ImageType::Pointer ReadImage(string pathToImages);
@@ -68,73 +50,24 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image);
 // walidacja
 typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image);
 double DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
+#pragma endregion
 
-int main(int argc, char *argv[]) {
+#pragma region InputArgumentsValidation
 
-	if (!ValidateArguments(argc, argv)) {
-		return EXIT_FAILURE;
+bool ValidateArguments(int argc, char *argv[]) {
+	if (argc < 5) {
+		std::cout << "Za ma³o argumentów wejœciowych \t\n";
+		std::cout << "Argumenty: \t\n";
+		std::cout << "- sciezka do folderu z seri¹ plików DICOM \t\n";
+		std::cout << "- sciezka do folderu wynikowego \t\n";
+		std::cout << "- punkty startowe segmentacji x,y,z \t\n";
+		return false;
 	}
-
-	try {
-		string pathToImages = argv[1];
-		string pathToResults = argv[2];
-
-		int x = std::atoi(argv[3]);
-		int y = std::atoi(argv[4]);
-		int z = std::atoi(argv[5]);
-		string pathToMasks;
-		ImageType::Pointer mask;
-
-		if (argc == 7)
-		{
-			pathToMasks = argv[6];
-			mask = ReadImage(pathToMasks);
-			SaveImage(mask, pathToResults, "maski_obrazu");
-		}
-
-		ImageType::Pointer image = ReadImage(pathToImages);
-		SaveImage(image, pathToResults, "obraz_wejsciowy");
-
-		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
-		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
-
-		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
-		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
-
-		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
-		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
-
-
-		ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z);
-		SaveImage(connectedThreshold, pathToResults, "obraz_po_segmentacji_connectedthreshold");
-
-		/*		ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
-				SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
-
-
-		ImageType::Pointer binaryOpen = BinaryOpen(connectedThreshold);
-		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
-
-		ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
-		SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
-
-		if (!pathToMasks.empty())
-		{
-			double diceResult = DiceResult(binaryClose, mask);
-			std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
-		}
-		std::cout << "Koniec" << std::endl;
-	}
-	catch (itk::ExceptionObject &ex) {
-		ex.Print(std::cout);
-		return EXIT_FAILURE;
-	}
-
-	std::cin.get();
-	return EXIT_SUCCESS;
-
-
 }
+
+#pragma endregion
+
+#pragma region ReadWriteMethods
 
 typename ImageType::Pointer ReadImage(string pathToImages) {
 
@@ -361,3 +294,72 @@ typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image) {
 	return filter->GetOutput();
 }
 #pragma endregion
+
+
+
+int main(int argc, char *argv[]) {
+
+	if (!ValidateArguments(argc, argv)) {
+		return EXIT_FAILURE;
+	}
+
+	try {
+		string pathToImages = argv[1];
+		string pathToResults = argv[2];
+
+		int x = std::atoi(argv[3]);
+		int y = std::atoi(argv[4]);
+		int z = std::atoi(argv[5]);
+		string pathToMasks;
+		ImageType::Pointer mask;
+
+		if (argc == 7)
+		{
+			pathToMasks = argv[6];
+			mask = ReadImage(pathToMasks);
+			SaveImage(mask, pathToResults, "maski_obrazu");
+		}
+
+		ImageType::Pointer image = ReadImage(pathToImages);
+		SaveImage(image, pathToResults, "obraz_wejsciowy");
+
+		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
+		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
+
+		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
+		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
+
+		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
+		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
+
+
+		ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z);
+		SaveImage(connectedThreshold, pathToResults, "obraz_po_segmentacji_connectedthreshold");
+
+		/*		ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
+				SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
+
+
+		ImageType::Pointer binaryOpen = BinaryOpen(connectedThreshold);
+		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+
+		ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
+		SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
+
+		if (!pathToMasks.empty())
+		{
+			double diceResult = DiceResult(binaryClose, mask);
+			std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
+		}
+		std::cout << "Koniec" << std::endl;
+	}
+	catch (itk::ExceptionObject &ex) {
+		ex.Print(std::cout);
+		return EXIT_FAILURE;
+	}
+
+	std::cin.get();
+	return EXIT_SUCCESS;
+
+
+}

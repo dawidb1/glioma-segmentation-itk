@@ -1,4 +1,6 @@
 /build/*
+/dane/*
+/wyniki/*
 
 # Prerequisites
 *.d

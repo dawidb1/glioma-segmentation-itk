@@ -22,6 +22,7 @@
 #include<itkBinaryMorphologicalClosingImageFilter.h>
 #include<itkBinaryMorphologicalOpeningImageFilter.h>
 //DICE
+#include<itkRescaleIntensityImageFilter.h>
 #include<itkLabelOverlapMeasuresImageFilter.h>
 
 #pragma region GlobalTypeDefinitions
@@ -65,6 +66,7 @@ typename ImageType::Pointer BinaryOpen(ImageType::Pointer image);
 typename ImageType::Pointer BinaryClose(ImageType::Pointer image);
 
 // walidacja
+typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image);
 int DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
 
 int main(int argc, char *argv[]) {
@@ -338,12 +340,25 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 #pragma endregion
 
 #pragma region Walidacja
-int DiceResult(ImageType::Pointer image1, ImageType::Pointer image2) {
+
+int DiceResult(ImageType::Pointer segmented, ImageType::Pointer originMask) {
+
+	ImageType::Pointer rescaledMask = RescaleBinaryMaskTo255(originMask);
 	itk::LabelOverlapMeasuresImageFilter<ImageType>::Pointer overlap_filter = itk::LabelOverlapMeasuresImageFilter<ImageType>::New();
-	overlap_filter->SetInput(0, image1);
-	overlap_filter->SetInput(1, image2);
+	overlap_filter->SetInput(0, segmented);
+	overlap_filter->SetInput(1, rescaledMask);
 	overlap_filter->Update();
 	return overlap_filter->GetDiceCoefficient();
 }
 
+typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image) {
+	using FilterType = itk::RescaleIntensityImageFilter<ImageType, ImageType>;
+	FilterType::Pointer filter = FilterType::New();
+	filter->SetInput(image);
+	filter->SetOutputMinimum(0);
+	filter->SetOutputMaximum(255);
+	filter->Update();
+
+	return filter->GetOutput();
+}
 #pragma endregion

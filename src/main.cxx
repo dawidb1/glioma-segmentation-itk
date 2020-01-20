@@ -252,8 +252,8 @@ int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int number
 	int lowY = y - numberOfPixels;
 	int upY = y + numberOfPixels;
 
-	for (int i = lowX; i < upX; i++) {
-		for (int j = lowY; j < upY; j++) {
+	for (int i = lowX; i <= upX; i++) {
+		for (int j = lowY; j <= upY; j++) {
 			index[0] = i;
 			index[1] = j;
 
@@ -264,6 +264,32 @@ int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int number
 
 	int mean = sum / counter;
 	return mean;
+}
+
+int CalculateStandardVariation(ImageType::Pointer image, int mean, int x, int y, int z, int numberOfPixels) {
+	ImageType::IndexType index;
+	index[2] = z;
+
+	int sum = 0;
+
+	int lowX = x - numberOfPixels;
+	int upX = x + numberOfPixels;
+
+	int lowY = y - numberOfPixels;
+	int upY = y + numberOfPixels;
+
+	for (int i = lowX; i <= upX; i++) {
+		for (int j = lowY; j <= upY; j++) {
+			index[0] = i;
+			index[1] = j;
+
+			int value = image->GetPixel(index) - mean;
+			sum += std::pow(value,2);
+		}
+	}
+
+	int stv = std::sqrt(sum);
+	return stv;
 }
 
 #pragma endregion
@@ -377,13 +403,13 @@ int main(int argc, char *argv[]) {
 
 		std::vector<ImageType::Pointer> segmentedImages;
 
-		ImageType::Pointer image = ReadImage(pathToImages);
+		ImageType::Pointer image = RescaleBinaryMaskTo255(ReadImage(pathToImages));
 		SaveImage(image, pathToResults, "obraz_wejsciowy");
 
-		//ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
-		//SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
+		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
+		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
 
-		ImageType::Pointer imageSharped = ImageSharpening(image);
+		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
 		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
 		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
@@ -403,9 +429,14 @@ int main(int argc, char *argv[]) {
 
 			int numberOfPixel = 2;
 			int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
+			int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
 
-			int low = 190;
-			int up = 245;
+			std::cout << "Srednia: " << mean << std::endl;
+			std::cout << "Odchylenie standardowe: " << stv << std::endl;
+
+			int jump = 20;
+			int low = mean - jump;
+			int up = mean + jump;
 
 			ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
 			SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji_connectedthreshold" + i));

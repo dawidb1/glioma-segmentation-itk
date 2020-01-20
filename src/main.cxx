@@ -237,6 +237,37 @@ ImageType::Pointer GetLogicSumImage(std::vector<ImageType::Pointer> images) {
 
 #pragma endregion
 
+#pragma region CalculateParameters
+
+int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int numberOfPixels) {
+	ImageType::IndexType index;
+	index[2] = z;
+
+	int sum = 0;
+	int counter = 0;
+
+	int lowX = x - numberOfPixels;
+	int upX = x + numberOfPixels;
+
+	int lowY = y - numberOfPixels;
+	int upY = y + numberOfPixels;
+
+	for (int i = lowX; i < upX; i++) {
+		for (int j = lowY; j < upY; j++) {
+			index[0] = i;
+			index[1] = j;
+
+			sum += image->GetPixel(index);
+			counter += 1;
+		}
+	}
+
+	int mean = sum / counter;
+	return mean;
+}
+
+#pragma endregion
+
 #pragma region PostProcessing
 
 typename ImageType::Pointer BinaryOpen(ImageType::Pointer image) {
@@ -349,10 +380,10 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer image = ReadImage(pathToImages);
 		SaveImage(image, pathToResults, "obraz_wejsciowy");
 
-		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
-		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
+		//ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
+		//SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
 
-		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
+		ImageType::Pointer imageSharped = ImageSharpening(image);
 		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
 		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
@@ -369,6 +400,9 @@ int main(int argc, char *argv[]) {
 			int x = coordinationVektor[0];
 			int y = coordinationVektor[1];
 			int z = coordinationVektor[2];
+
+			int numberOfPixel = 2;
+			int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
 
 			int low = 190;
 			int up = 245;

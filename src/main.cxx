@@ -62,7 +62,7 @@ double DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
 string GetArgumentInfoMessage(string message) {
 	std::stringstream error;
 	error << message
-		<< "Argumenty: \t\n" 
+		<< "Argumenty: \t\n"
 		<< "- sciezka do folderu z seria plikow DICOM \t\n"
 		<< "- sciezka do folderu wynikowego \t\n"
 		<< "- ilosc punktow startowych \t\n"
@@ -75,7 +75,7 @@ bool ValidateArguments(int argc, char *argv[]) {
 
 	int minimumRequiredParameters = numberOfSeedPointsIndex;
 
-	if (argc < numberOfSeedPointsIndex +1) {
+	if (argc < numberOfSeedPointsIndex + 1) {
 		std::cout << GetArgumentInfoMessage("Za malo argumentow wejsciowych\t\n");
 		return false;
 	}
@@ -83,12 +83,108 @@ bool ValidateArguments(int argc, char *argv[]) {
 	int numberOfSeedPoints = std::atoi(argv[numberOfSeedPointsIndex]);
 	minimumRequiredParameters += numberOfSeedPoints;
 
-	if (argc < minimumRequiredParameters+1) {
+	if (argc < minimumRequiredParameters + 1) {
 		std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
 	}
 }
-
 #pragma endregion
+
+int main(int argc, char *argv[]) {
+
+	if (!ValidateArguments(argc, argv)) {
+		return EXIT_FAILURE;
+	}
+
+	try {
+		string pathToImages = argv[pathToImagesIndex];
+		string pathToResults = argv[pathToResultIndex];
+		int numberOfSeedPoints = std::atoi(argv[numberOfSeedPointsIndex]);
+
+		std::vector<ImageType::Pointer> segmentedImages;
+
+		ImageType::Pointer image = RescaleBinaryMaskTo255(ReadImage(pathToImages));
+		SaveImage(image, pathToResults, "obraz_wejsciowy");
+
+		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
+		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
+
+		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
+		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
+
+		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
+		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
+
+		for (int i = numberOfSeedPointsIndex + 1; i < numberOfSeedPointsIndex + numberOfSeedPoints + 1; i++) {
+
+			std::vector<int> coordinationVektor = GetCoordinationArray(argv[i]);
+			if (coordinationVektor.size() < 3) {
+				std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
+				return EXIT_FAILURE;
+			}
+
+			int x = coordinationVektor[0];
+			int y = coordinationVektor[1];
+			int z = coordinationVektor[2];
+
+			int numberOfPixel = 2;
+			int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
+			int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
+
+			std::cout << "Srednia: " << mean << std::endl;
+			std::cout << "Odchylenie standardowe: " << stv << std::endl;
+
+			int jump = 20;
+			int low = mean - jump;
+			int up = mean + jump;
+
+			ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
+			SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji" + std::to_string(i)));
+
+			/*ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
+			 SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
+
+			segmentedImages.push_back(connectedThreshold);
+
+		}
+
+		ImageType::Pointer logicSumImage = GetLogicSumImage(segmentedImages);
+		SaveImage(logicSumImage, pathToResults, "suma_masek_obrazu");
+
+		ImageType::Pointer binaryOpen = BinaryOpen(logicSumImage);
+		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+
+		ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
+		SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
+
+
+		string pathToMasks;
+		ImageType::Pointer mask;
+
+		int restArguments = argc - numberOfSeedPointsIndex - numberOfSeedPoints - 1;
+
+		if (restArguments > 0) {
+			pathToMasks = argv[numberOfSeedPointsIndex + numberOfSeedPoints + 1];
+			mask = ReadImage(pathToMasks);
+			SaveImage(mask, pathToResults, "maski_obrazu");
+		}
+
+		if (!pathToMasks.empty())
+		{
+			double diceResult = DiceResult(binaryClose, mask);
+			std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
+		}
+
+		std::cout << "Koniec" << std::endl;
+	}
+	catch (itk::ExceptionObject &ex) {
+		ex.Print(std::cout);
+		return EXIT_FAILURE;
+	}
+
+	std::cin.get();
+	return EXIT_SUCCESS;
+}
+
 
 #pragma region ReadWriteMethods
 
@@ -238,7 +334,7 @@ ImageType::Pointer GetLogicSumImage(std::vector<ImageType::Pointer> images) {
 	addFilter->Update();
 
 	if (images.size() > 2) {
-		for (int i = 2; i <=images.size(); i++) {
+		for (int i = 2; i <= images.size(); i++) {
 			addFilter->SetInput1(logicSumImage);
 			addFilter->SetInput2(images[i]);
 			addFilter->Update();
@@ -301,7 +397,7 @@ int CalculateStandardVariation(ImageType::Pointer image, int mean, int x, int y,
 			index[1] = j;
 
 			int value = image->GetPixel(index) - mean;
-			sum += std::pow(value,2);
+			sum += std::pow(value, 2);
 		}
 	}
 
@@ -397,7 +493,7 @@ typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image) {
 
 std::vector<int> GetCoordinationArray(string coordinations) {
 
-	std::replace(coordinations.begin(), coordinations.end(), ';', ' '); 
+	std::replace(coordinations.begin(), coordinations.end(), ';', ' ');
 
 	std::vector<int> array;
 	std::stringstream ss(coordinations);
@@ -406,102 +502,4 @@ std::vector<int> GetCoordinationArray(string coordinations) {
 		array.push_back(temp);
 
 	return array;
-}
-
-int main(int argc, char *argv[]) {
-
-	if (!ValidateArguments(argc, argv)) {
-		return EXIT_FAILURE;
-	}
-
-	try {
-		string pathToImages = argv[pathToImagesIndex];
-		string pathToResults = argv[pathToResultIndex];
-		int numberOfSeedPoints = std::atoi(argv[numberOfSeedPointsIndex]);
-
-		std::vector<ImageType::Pointer> segmentedImages;
-
-		ImageType::Pointer image = RescaleBinaryMaskTo255(ReadImage(pathToImages));
-		SaveImage(image, pathToResults, "obraz_wejsciowy");
-
-		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
-		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
-
-		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
-		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
-
-		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
-		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
-
-		for (int i = numberOfSeedPointsIndex + 1; i < numberOfSeedPointsIndex + numberOfSeedPoints + 1; i++) {
-
-			std::vector<int> coordinationVektor = GetCoordinationArray(argv[i]);
-			if (coordinationVektor.size() < 3) {
-				std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
-				return EXIT_FAILURE;
-			}
-
-			int x = coordinationVektor[0];
-			int y = coordinationVektor[1];
-			int z = coordinationVektor[2];
-
-			int numberOfPixel = 2;
-			int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
-			int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
-
-			std::cout << "Srednia: " << mean << std::endl;
-			std::cout << "Odchylenie standardowe: " << stv << std::endl;
-
-			int jump = 20;
-			int low = mean - jump;
-			int up = mean + jump;
-			
-			ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
-			SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji" + std::to_string(i)));
-
-			/*ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
-			 SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
-
-			segmentedImages.push_back(connectedThreshold);
-
-		}
-
-		ImageType::Pointer logicSumImage = GetLogicSumImage(segmentedImages);
-		SaveImage(logicSumImage, pathToResults, "suma_masek_obrazu");
-
-		ImageType::Pointer binaryOpen = BinaryOpen(logicSumImage);
-		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
-
-		ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
-		SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
-
-
-		string pathToMasks;
-		ImageType::Pointer mask;
-
-		int restArguments = argc - numberOfSeedPointsIndex - numberOfSeedPoints - 1;
-
-		if (restArguments > 0) {
-			pathToMasks = argv[numberOfSeedPointsIndex + numberOfSeedPoints + 1];
-			mask = ReadImage(pathToMasks);
-			SaveImage(mask, pathToResults, "maski_obrazu");
-		}
-
-		if (!pathToMasks.empty())
-		{
-			double diceResult = DiceResult(binaryClose, mask);
-			std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
-		}
-
-		std::cout << "Koniec" << std::endl;
-	}
-	catch (itk::ExceptionObject &ex) {
-		ex.Print(std::cout);
-		return EXIT_FAILURE;
-	}
-
-	std::cin.get();
-	return EXIT_SUCCESS;
-
-
 }

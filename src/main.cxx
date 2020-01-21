@@ -17,6 +17,7 @@
 #include<itkConnectedThresholdImageFilter.h>
 #include<itkConfidenceConnectedImageFilter.h>
 #include<itkRegionGrowImageFilter.h>
+#include<itkAddImageFilter.h>
 //Postprocessing
 #include<itkBinaryBallStructuringElement.h>
 #include<itkBinaryMorphologicalClosingImageFilter.h>
@@ -229,8 +230,24 @@ ImageType::Pointer GetLogicSumImage(std::vector<ImageType::Pointer> images) {
 		return images[0];
 	}
 
-	//TODO suma logiczna obrazów jeœli jest ich wiêcej ni¿ jeden
-	logicSumImage = images[0];
+	using AddImageFilterType = itk::AddImageFilter<ImageType, ImageType>;
+	AddImageFilterType::Pointer addFilter = AddImageFilterType::New();
+
+	addFilter->SetInput1(images[0]);
+	addFilter->SetInput2(images[1]);
+	addFilter->Update();
+
+	if (images.size() > 2) {
+		for (int i = 2; i <=images.size(); i++) {
+			addFilter->SetInput1(logicSumImage);
+			addFilter->SetInput2(images[i]);
+			addFilter->Update();
+			logicSumImage = addFilter->GetOutput();
+		}
+	}
+
+	logicSumImage = addFilter->GetOutput();
+
 	return logicSumImage;
 
 }
@@ -377,6 +394,7 @@ typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image) {
 }
 #pragma endregion
 
+
 std::vector<int> GetCoordinationArray(string coordinations) {
 
 	std::replace(coordinations.begin(), coordinations.end(), ';', ' '); 
@@ -437,9 +455,9 @@ int main(int argc, char *argv[]) {
 			int jump = 20;
 			int low = mean - jump;
 			int up = mean + jump;
-
+			
 			ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
-			SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji_connectedthreshold" + i));
+			SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji" + std::to_string(i)));
 
 			/*ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
 			 SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
@@ -449,6 +467,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		ImageType::Pointer logicSumImage = GetLogicSumImage(segmentedImages);
+		SaveImage(logicSumImage, pathToResults, "suma_masek_obrazu");
 
 		ImageType::Pointer binaryOpen = BinaryOpen(logicSumImage);
 		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");

@@ -71,17 +71,17 @@ string logs = "";
 string GetArgumentInfoMessage(string message) {
 	std::stringstream error;
 	error << message
-		<< "GliomaSegmentation: Pó³automatyczna metoda segmentacji glejaka wielorozdzielczego \t\n"
+		<< "GliomaSegmentation: Pï¿½automatyczna metoda segmentacji glejaka wielorozdzielczego \t\n"
 		<< ""
 		<< "Argumenty: \t\n"
 		<< "- sciezka do folderu z seria plikow DICOM \t\n"
 		<< "- sciezka do folderu wynikowego \t\n"
 		<< "- punkty startowe segmentacji x;y;z \t\n"
 		<< ""
-		<< "[-c] - wspó³czynnik progu"
-		<< "[-ot] - otoczka wypuk³a z punktami startowymi segmentacji x;y;z"
-		<< "[-cot] - wspó³czynnik progu otoczki wypuk³ej"
-		<< "[-D] - sciezka do folderu z seria plikow masek eksperckich, wedlug których zostanie obliczona wartosc DICE";
+		<< "[-c] - wspï¿½czynnik progu"
+		<< "[-ot] - otoczka wypukï¿½a z punktami startowymi segmentacji x;y;z"
+		<< "[-cot] - wspï¿½czynnik progu otoczki wypukï¿½ej"
+		<< "[-D] - sciezka do folderu z seria plikow masek eksperckich, wedlug ktï¿½rych zostanie obliczona wartosc DICE";
 
 	return error.str();
 }
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
 		string pathToImages = argv[pathToImagesIndex];
 		string pathToResults = argv[pathToResultIndex];
 
-		std::cout << "Obraz wejœciowy: " << pathToImages << "\t\n";
+		std::cout << "Obraz wejï¿½ciowy: " << pathToImages << "\t\n";
 
 		std::vector<ImageType::Pointer> segmentedImages;
 
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 		// segmentation
 		std::vector<int> coordinationVektor = GetCoordinationArray(argv[seedPointsIndex]);
 		if (coordinationVektor.size() < 3) {
-			std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
+			std::cout << GetArgumentInfoMessage("Za maï¿½o punktï¿½w startowych\t\n");
 			return EXIT_FAILURE;
 		}
 
@@ -151,17 +151,17 @@ int main(int argc, char *argv[]) {
 		int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
 		int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
 
-		logs += ("Srednia wokó³ punktu: " + std::to_string(mean));
-		logs += ("Odchylenie standardowe wokó³ punktu: " + std::to_string(stv));
+		logs += ("Srednia wokï¿½ punktu: " + std::to_string(mean));
+		logs += ("Odchylenie standardowe wokï¿½ punktu: " + std::to_string(stv));
 
-		std::cout << "Œrednia wokó³ punktu: " + std::to_string(mean) << "\t\n";
-		std::cout << "Odchylenie wokó³ punktu: " + std::to_string(stv) << "\t\n";
+		std::cout << "ï¿½rednia wokï¿½ punktu: " + std::to_string(mean) << "\t\n";
+		std::cout << "Odchylenie wokï¿½ punktu: " + std::to_string(stv) << "\t\n";
 
 		int low = mean - (segmentationCoef * stv);
 		int up = mean + (segmentationCoef * stv);
-		std::cout << "Wspó³czynnik progu otoczki: " + std::to_string(segmentationCoef) << "\t\n";
+		std::cout << "Wspï¿½czynnik progu otoczki: " + std::to_string(segmentationCoef) << "\t\n";
 
-		ImageType::Pointer connectedThreshold = ConnectedThreshold(anisotrophyDyfusion, x, y, z, low, up);
+		ImageType::Pointer connectedThreshold = ConnectedThreshold(histogramMatched, x, y, z, low, up);
 		SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji"));
 		segmentedImages.push_back(connectedThreshold);
 
@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
 			{
 				std::vector<int> coordinationVektor = GetCoordinationArray(argv[i + 1]);
 				if (coordinationVektor.size() < 3) {
-					std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
+					std::cout << GetArgumentInfoMessage("Za maï¿½o punktï¿½w startowych\t\n");
 					return EXIT_FAILURE;
 				}
 
@@ -188,18 +188,18 @@ int main(int argc, char *argv[]) {
 				int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
 				int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
 
-				std::cout << "Œrednia wokó³ otoczki: " + std::to_string(mean) << "\t\n";
-				std::cout << "Odchylenie wokó³ otoczki: " + std::to_string(stv) << "\t\n";
+				std::cout << "ï¿½rednia wokï¿½ otoczki: " + std::to_string(mean) << "\t\n";
+				std::cout << "Odchylenie wokï¿½ otoczki: " + std::to_string(stv) << "\t\n";
 				logs += "Srednia otoczki: " + std::to_string(mean) + "\t\n";
 				logs += "Odchylenie standardowe otoczki: " + std::to_string(stv) + "\t\n";
 
-				std::cout << "Wspó³czynnik progu otoczki: " + std::to_string(segmentationCoef2) << "\t\n";
+				std::cout << "Wspï¿½czynnik progu otoczki: " + std::to_string(segmentationCoef2) << "\t\n";
 
 				int low = mean; // -(segmentationCoef2 * stv);
 				int up = mean + (segmentationCoef2 * stv);
 
-				std::cout << "Próg dolny otoczki: " + std::to_string(low) << "\t\n";
-				std::cout << "Próg górny otoczki: " + std::to_string(up) << "\t\n";
+				std::cout << "Prï¿½g dolny otoczki: " + std::to_string(low) << "\t\n";
+				std::cout << "Prï¿½g gï¿½rny otoczki: " + std::to_string(up) << "\t\n";
 
 				ImageType::Pointer connectedThreshold = ConnectedThreshold(histogramMatched, x, y, z, low, up);
 				segmentedImages.push_back(connectedThreshold);
@@ -210,9 +210,6 @@ int main(int argc, char *argv[]) {
 
 				binaryOpen = BinaryOpen(segmentationResultImage);
 				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
-
-				binaryClose = BinaryClose(binaryOpen);
-				SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
 			}
 			else if (strcmp(argv[i], "-D") == 0)
 			{
@@ -220,22 +217,23 @@ int main(int argc, char *argv[]) {
 				ImageType::Pointer mask = ReadImage(pathToMasks);
 				SaveImage(mask, pathToResults, "maski_obrazu");
 
-				if (!binaryClose) {
+				if (!binaryOpen) {
 					binaryOpen = BinaryOpen(segmentationResultImage);
 					SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
-
-					binaryClose = BinaryClose(binaryOpen);
-					SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
 				}
 
-				double diceResult = DiceResult(binaryClose, mask);
-				std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
-				logs += "Wspó³czynnik DICE: " + std::to_string(diceResult);
+				double diceResult = DiceResult(binaryOpen, mask);
+				std::cout << "Wspï¿½czynnik DICE: " + std::to_string(diceResult) << "\t\n\t\n\t\n";
+				logs += "Wspï¿½czynnik DICE: " + std::to_string(diceResult);
 			}
 			else if (strcmp(argv[i], "-v") == 0)
 			{
 				std::cout << logs;
 			}
+		}
+		if (!binaryOpen) {
+				binaryOpen = BinaryOpen(segmentationResultImage);
+				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
 		}
 
 		std::cout << "Koniec\t\n\t\n" << std::endl;
@@ -262,7 +260,7 @@ typename ImageType::Pointer ReadImage(string pathToImages) {
 	int imagesSizeInDir = gdcmSeriesFileNames->GetFileNames(series[0]).size();
 
 	int counter = 0;
-	logs += ("\t\nPrzyk³adowy odczytany plik: " + gdcmSeriesFileNames->GetFileNames(series[0])[0]);
+	logs += ("\t\nPrzykï¿½adowy odczytany plik: " + gdcmSeriesFileNames->GetFileNames(series[0])[0]);
 	ReaderTypeSeries::Pointer seriesReader = ReaderTypeSeries::New();
 	seriesReader->SetFileNames(gdcmSeriesFileNames->GetFileNames(series[0]));
 	seriesReader->Update();
@@ -321,12 +319,12 @@ typename ImageType::Pointer HistogramMatching(ImageType::Pointer image, ImageTyp
 	filter->SetInput(image);
 	filter->SetReferenceImage(referenceImage);
 
-	filter->ThresholdAtMeanIntensityOn(); //W³¹cza metodê wykluczania t³a. Histogram referencyjny zwrócony z tego filtra rozszerzy pierwsz¹ i ostatni¹ granicê bin, 
-	//aby obj¹æ minimalne i maksymalne wartoœci intensywnoœci ca³ego obrazu referencyjnego, ale do wype³nienia histogramu zostan¹ u¿yte tylko 
-	//wartoœci intensywnoœci wiêksze ni¿ œrednia.
+	filter->ThresholdAtMeanIntensityOn(); //Wï¿½ï¿½cza metodï¿½ wykluczania tï¿½a. Histogram referencyjny zwrï¿½cony z tego filtra rozszerzy pierwszï¿½ i ostatniï¿½ granicï¿½ bin, 
+	//aby objï¿½ï¿½ minimalne i maksymalne wartoï¿½ci intensywnoï¿½ci caï¿½ego obrazu referencyjnego, ale do wypeï¿½nienia histogramu zostanï¿½ uï¿½yte tylko 
+	//wartoï¿½ci intensywnoï¿½ci wiï¿½ksze niï¿½ ï¿½rednia.
 
-	filter->SetNumberOfHistogramLevels(1024); //ustawia liczbê pojemników u¿ywanych podczas tworzenia histogramów obrazów Ÿród³owych i referencyjnych.
-	filter->SetNumberOfMatchPoints(10); // reguluje liczbê dopasowywanych wartoœci kwantyli.
+	filter->SetNumberOfHistogramLevels(1024); //ustawia liczbï¿½ pojemnikï¿½w uï¿½ywanych podczas tworzenia histogramï¿½w obrazï¿½w ï¿½rï¿½dï¿½owych i referencyjnych.
+	filter->SetNumberOfMatchPoints(10); // reguluje liczbï¿½ dopasowywanych wartoï¿½ci kwantyli.
 
 	filter->Update();
 	return filter->GetOutput();
@@ -415,7 +413,7 @@ int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int number
 	index[1] = y;
 	index[2] = z;
 
-	std::cout << "Wartoœæ wskazanego piksela: " + std::to_string(image->GetPixel(index)) << "\t\n";
+	std::cout << "Wartoï¿½ï¿½ wskazanego piksela: " + std::to_string(image->GetPixel(index)) << "\t\n";
 
 
 	int sum = 0;
@@ -484,6 +482,9 @@ typename ImageType::Pointer BinaryOpen(ImageType::Pointer image) {
 	BinaryMorphologicalOpeningImageFilterType::Pointer openingFilter = BinaryMorphologicalOpeningImageFilterType::New();
 	openingFilter->SetInput(image);
 	openingFilter->SetKernel(structuringElement);
+	
+	openingFilter->SetBackgroundValue(255);
+	openingFilter->SetForegroundValue(0);
 	openingFilter->Update();
 
 	return openingFilter->GetOutput();
@@ -493,16 +494,6 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 
 	int radius = 1;
 
-	//using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
-	//StructuringElementType structuringElement;
-	//structuringElement.SetRadius(radius);
-	//structuringElement.CreateStructuringElement();
-
-	//using BinaryMorphologicalClosingImageFilterType = itk::BinaryMorphologicalClosingImageFilter<ImageType, ImageType, StructuringElementType>;
-	//BinaryMorphologicalClosingImageFilterType::Pointer closingFilter = BinaryMorphologicalClosingImageFilterType::New();
-	//closingFilter->SetInput(image);
-	//closingFilter->SetKernel(structuringElement);
-	//closingFilter->Update();
 	using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
 	StructuringElementType structuringElement;
 
@@ -516,6 +507,9 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 
 		closingFilter->SetInput(image);
 		closingFilter->SetKernel(structuringElement);
+
+		closingFilter->SetForegroundValue(0);
+
 		closingFilter->Update();
 
 		SaveImage(closingFilter->GetOutput(), "..\\wyniki\\temp", "obraz_po_domknieciu_" + std::to_string(radius));

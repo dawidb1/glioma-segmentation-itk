@@ -108,6 +108,8 @@ int main(int argc, char *argv[]) {
 		string pathToImages = argv[pathToImagesIndex];
 		string pathToResults = argv[pathToResultIndex];
 
+		std::cout << "Obraz wejœciowy: " << pathToImages << "\t\n";
+
 		std::vector<ImageType::Pointer> segmentedImages;
 
 		ImageType::Pointer image = RescaleBinaryMaskTo255(ReadImage(pathToImages));
@@ -116,10 +118,10 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
 		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
 
-		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
-		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
+		//ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
+		//SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
-		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
+		ImageType::Pointer histogramMatched = HistogramMatching(anisotrophyDyfusion, image);
 		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
 
 		for (int i = 1; i < argc; i++)
@@ -152,10 +154,14 @@ int main(int argc, char *argv[]) {
 		logs += ("Srednia wokó³ punktu: " + std::to_string(mean));
 		logs += ("Odchylenie standardowe wokó³ punktu: " + std::to_string(stv));
 
+		std::cout << "Œrednia wokó³ punktu: " + std::to_string(mean) << "\t\n";
+		std::cout << "Odchylenie wokó³ punktu: " + std::to_string(stv) << "\t\n";
+
 		int low = mean - (segmentationCoef * stv);
 		int up = mean + (segmentationCoef * stv);
+		std::cout << "Wspó³czynnik progu otoczki: " + std::to_string(segmentationCoef) << "\t\n";
 
-		ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
+		ImageType::Pointer connectedThreshold = ConnectedThreshold(anisotrophyDyfusion, x, y, z, low, up);
 		SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji"));
 		segmentedImages.push_back(connectedThreshold);
 
@@ -182,11 +188,18 @@ int main(int argc, char *argv[]) {
 				int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
 				int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
 
+				std::cout << "Œrednia wokó³ otoczki: " + std::to_string(mean) << "\t\n";
+				std::cout << "Odchylenie wokó³ otoczki: " + std::to_string(stv) << "\t\n";
 				logs += "Srednia otoczki: " + std::to_string(mean) + "\t\n";
 				logs += "Odchylenie standardowe otoczki: " + std::to_string(stv) + "\t\n";
 
-				int low = mean - (segmentationCoef2 * stv);
+				std::cout << "Wspó³czynnik progu otoczki: " + std::to_string(segmentationCoef2) << "\t\n";
+
+				int low = mean; // -(segmentationCoef2 * stv);
 				int up = mean + (segmentationCoef2 * stv);
+
+				std::cout << "Próg dolny otoczki: " + std::to_string(low) << "\t\n";
+				std::cout << "Próg górny otoczki: " + std::to_string(up) << "\t\n";
 
 				ImageType::Pointer connectedThreshold = ConnectedThreshold(histogramMatched, x, y, z, low, up);
 				segmentedImages.push_back(connectedThreshold);
@@ -216,7 +229,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				double diceResult = DiceResult(binaryClose, mask);
-				std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n\t\n\t\n";
+				std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
 				logs += "Wspó³czynnik DICE: " + std::to_string(diceResult);
 			}
 			else if (strcmp(argv[i], "-v") == 0)
@@ -225,14 +238,14 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		std::cout << "Koniec" << std::endl;
+		std::cout << "Koniec\t\n\t\n" << std::endl;
 	}
 	catch (itk::ExceptionObject &ex) {
 		ex.Print(std::cout);
 		return EXIT_FAILURE;
 	}
 
-	std::cin.get();
+	//std::cin.get();
 	return EXIT_SUCCESS;
 }
 
@@ -266,7 +279,7 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults, string file
 	seriesWriter->SetFileName(pathToResults + "/" + fileName + ".vtk");
 	seriesWriter->Update();
 
-	std::cout << "Zapisano obraz o nazwie: " << fileName << "\t\n";
+	//std::cout << "Zapisano obraz o nazwie: " << fileName << "\t\n";
 	logs += "Zapisano obraz o nazwie: " + fileName + "\t\n";
 }
 #pragma endregion
@@ -275,9 +288,9 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults, string file
 
 typename ImageType::Pointer AnisotrophyDyfusion(ImageType::Pointer image) {
 
-	unsigned int numberOfIteration = 10; // typically set to 5;
-	double conductanceParameter = 8;
-	double timeStep = 0.02; // Typical values for the time step are 0.25 in 2D images and 0.125 in 3D images. T
+	unsigned int numberOfIteration = 5; // typically set to 5;
+	double conductanceParameter = 4;
+	double timeStep = 0.125; // Typical values for the time step are 0.25 in 2D images and 0.125 in 3D images. T
 
 	using FilterType = itk::GradientAnisotropicDiffusionImageFilter<ImageType, ImageType>;
 	FilterType::Pointer filter = FilterType::New();
@@ -397,7 +410,13 @@ ImageType::Pointer GetLogicSumImage(std::vector<ImageType::Pointer> images) {
 
 int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int numberOfPixels) {
 	ImageType::IndexType index;
+
+	index[0] = x;
+	index[1] = y;
 	index[2] = z;
+
+	std::cout << "Wartoœæ wskazanego piksela: " + std::to_string(image->GetPixel(index)) << "\t\n";
+
 
 	int sum = 0;
 	int counter = 0;

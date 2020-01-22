@@ -116,10 +116,10 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
 		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
 
-		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
-		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
+		//ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
+		//SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
-		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
+		ImageType::Pointer histogramMatched = HistogramMatching(anisotrophyDyfusion, image);
 		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
 
 		for (int i = 1; i < argc; i++)
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
 		int low = mean - (segmentationCoef * stv);
 		int up = mean + (segmentationCoef * stv);
 
-		ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
+		ImageType::Pointer connectedThreshold = ConnectedThreshold(histogramMatched, x, y, z, low, up);
 		SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji"));
 		segmentedImages.push_back(connectedThreshold);
 
@@ -198,8 +198,8 @@ int main(int argc, char *argv[]) {
 				binaryOpen = BinaryOpen(segmentationResultImage);
 				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
 
-				binaryClose = BinaryClose(binaryOpen);
-				SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
+				/*binaryClose = BinaryClose(binaryOpen);
+				SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");*/
 			}
 			else if (strcmp(argv[i], "-D") == 0)
 			{
@@ -207,15 +207,17 @@ int main(int argc, char *argv[]) {
 				ImageType::Pointer mask = ReadImage(pathToMasks);
 				SaveImage(mask, pathToResults, "maski_obrazu");
 
+				binaryOpen = BinaryOpen(segmentationResultImage);
+				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+/*
 				if (!binaryClose) {
-					binaryOpen = BinaryOpen(segmentationResultImage);
-					SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+					
 
 					binaryClose = BinaryClose(binaryOpen);
 					SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
-				}
+				}*/
 
-				double diceResult = DiceResult(binaryClose, mask);
+				double diceResult = DiceResult(binaryOpen, mask);
 				std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n\t\n\t\n";
 				logs += "Wspó³czynnik DICE: " + std::to_string(diceResult);
 			}
@@ -275,9 +277,9 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults, string file
 
 typename ImageType::Pointer AnisotrophyDyfusion(ImageType::Pointer image) {
 
-	unsigned int numberOfIteration = 10; // typically set to 5;
-	double conductanceParameter = 8;
-	double timeStep = 0.02; // Typical values for the time step are 0.25 in 2D images and 0.125 in 3D images. T
+	unsigned int numberOfIteration = 5; // typically set to 5;
+	double conductanceParameter = 4;
+	double timeStep = 0.125; // Typical values for the time step are 0.25 in 2D images and 0.125 in 3D images. T
 
 	using FilterType = itk::GradientAnisotropicDiffusionImageFilter<ImageType, ImageType>;
 	FilterType::Pointer filter = FilterType::New();
@@ -465,6 +467,9 @@ typename ImageType::Pointer BinaryOpen(ImageType::Pointer image) {
 	BinaryMorphologicalOpeningImageFilterType::Pointer openingFilter = BinaryMorphologicalOpeningImageFilterType::New();
 	openingFilter->SetInput(image);
 	openingFilter->SetKernel(structuringElement);
+	
+	openingFilter->SetBackgroundValue(255);
+	openingFilter->SetForegroundValue(0);
 	openingFilter->Update();
 
 	return openingFilter->GetOutput();
@@ -474,16 +479,6 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 
 	int radius = 1;
 
-	//using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
-	//StructuringElementType structuringElement;
-	//structuringElement.SetRadius(radius);
-	//structuringElement.CreateStructuringElement();
-
-	//using BinaryMorphologicalClosingImageFilterType = itk::BinaryMorphologicalClosingImageFilter<ImageType, ImageType, StructuringElementType>;
-	//BinaryMorphologicalClosingImageFilterType::Pointer closingFilter = BinaryMorphologicalClosingImageFilterType::New();
-	//closingFilter->SetInput(image);
-	//closingFilter->SetKernel(structuringElement);
-	//closingFilter->Update();
 	using StructuringElementType = itk::BinaryBallStructuringElement<ImageType::PixelType, ImageType::ImageDimension>;
 	StructuringElementType structuringElement;
 
@@ -497,6 +492,9 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 
 		closingFilter->SetInput(image);
 		closingFilter->SetKernel(structuringElement);
+
+		closingFilter->SetForegroundValue(0);
+
 		closingFilter->Update();
 
 		SaveImage(closingFilter->GetOutput(), "..\\wyniki\\temp", "obraz_po_domknieciu_" + std::to_string(radius));

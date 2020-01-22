@@ -29,7 +29,7 @@
 #pragma region GlobalTypeDefinitions
 int pathToImagesIndex = 1;
 int pathToResultIndex = 2;
-int numberOfSeedPointsIndex = 3;
+int seedPointsIndex = 3;
 
 typedef std::string string;
 typedef signed short PixelType;
@@ -44,8 +44,16 @@ typename ImageType::Pointer AnisotrophyDyfusion(ImageType::Pointer image);
 typename ImageType::Pointer ImageSharpening(ImageType::Pointer image);
 typename ImageType::Pointer HistogramMatching(ImageType::Pointer image, ImageType::Pointer referenceImage);
 
+// calculation
+std::vector<int> GetCoordinationArray(string coordinations);
+int CalculateStandardVariation(ImageType::Pointer image, int mean, int x, int y, int z, int numberOfPixels);
+int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int numberOfPixels);
+
 // segmentation
-typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, int y, int z);
+int segmentationCoef = 1;
+int segmentationCoef2 = 0.4;
+ImageType::Pointer GetLogicSumImage(std::vector<ImageType::Pointer> images);
+typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, int y, int z, int downside, int updside);
 typename ImageType::Pointer ConfidenceConnected(ImageType::Pointer image, int x, int y, int z);
 
 // postprocessing
@@ -55,6 +63,7 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image);
 // walidacja
 typename ImageType::Pointer RescaleBinaryMaskTo255(ImageType::Pointer image);
 double DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
+string logs = "";
 #pragma endregion
 
 #pragma region InputArgumentsValidation
@@ -62,29 +71,29 @@ double DiceResult(ImageType::Pointer image1, ImageType::Pointer image2);
 string GetArgumentInfoMessage(string message) {
 	std::stringstream error;
 	error << message
+		<< "GliomaSegmentation: Pó³automatyczna metoda segmentacji glejaka wielorozdzielczego \t\n"
+		<< ""
 		<< "Argumenty: \t\n"
 		<< "- sciezka do folderu z seria plikow DICOM \t\n"
 		<< "- sciezka do folderu wynikowego \t\n"
-		<< "- ilosc punktow startowych \t\n"
 		<< "- punkty startowe segmentacji x;y;z \t\n"
-		<< "- sciezka do folderu z seria plikow obrysów eksperckich";
+		<< ""
+		<< "[-c] - wspó³czynnik progu"
+		<< "[-ot] - otoczka wypuk³a z punktami startowymi segmentacji x;y;z"
+		<< "[-cot] - wspó³czynnik progu otoczki wypuk³ej"
+		<< "[-D] - sciezka do folderu z seria plikow masek eksperckich, wedlug których zostanie obliczona wartosc DICE";
+
 	return error.str();
 }
 
 bool ValidateArguments(int argc, char *argv[]) {
 
-	int minimumRequiredParameters = numberOfSeedPointsIndex;
+	int minimumRequiredParameters = seedPointsIndex;
 
-	if (argc < numberOfSeedPointsIndex + 1) {
+	if (argc < seedPointsIndex + 1) {
 		std::cout << GetArgumentInfoMessage("Za malo argumentow wejsciowych\t\n");
+
 		return false;
-	}
-
-	int numberOfSeedPoints = std::atoi(argv[numberOfSeedPointsIndex]);
-	minimumRequiredParameters += numberOfSeedPoints;
-
-	if (argc < minimumRequiredParameters + 1) {
-		std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
 	}
 }
 #pragma endregion
@@ -98,7 +107,6 @@ int main(int argc, char *argv[]) {
 	try {
 		string pathToImages = argv[pathToImagesIndex];
 		string pathToResults = argv[pathToResultIndex];
-		int numberOfSeedPoints = std::atoi(argv[numberOfSeedPointsIndex]);
 
 		std::vector<ImageType::Pointer> segmentedImages;
 
@@ -114,64 +122,99 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
 		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
 
-		for (int i = numberOfSeedPointsIndex + 1; i < numberOfSeedPointsIndex + numberOfSeedPoints + 1; i++) {
-
-			std::vector<int> coordinationVektor = GetCoordinationArray(argv[i]);
-			if (coordinationVektor.size() < 3) {
-				std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
-				return EXIT_FAILURE;
-			}
-
-			int x = coordinationVektor[0];
-			int y = coordinationVektor[1];
-			int z = coordinationVektor[2];
-
-			int numberOfPixel = 2;
-			int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
-			int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
-
-			std::cout << "Srednia: " << mean << std::endl;
-			std::cout << "Odchylenie standardowe: " << stv << std::endl;
-
-			int jump = 20;
-			int low = mean - jump;
-			int up = mean + jump;
-
-			ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
-			SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji" + std::to_string(i)));
-
-			/*ImageType::Pointer confidenceConnected = ConfidenceConnected(imageSharped, x, y, z);
-			 SaveImage(confidenceConnected, pathToResults, "obraz_po_segmentacji_confidenceConnected");*/
-
-			segmentedImages.push_back(connectedThreshold);
-
-		}
-
-		ImageType::Pointer logicSumImage = GetLogicSumImage(segmentedImages);
-		SaveImage(logicSumImage, pathToResults, "suma_masek_obrazu");
-
-		ImageType::Pointer binaryOpen = BinaryOpen(logicSumImage);
-		SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
-
-		ImageType::Pointer binaryClose = BinaryClose(binaryOpen);
-		SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
-
-
-		string pathToMasks;
-		ImageType::Pointer mask;
-
-		int restArguments = argc - numberOfSeedPointsIndex - numberOfSeedPoints - 1;
-
-		if (restArguments > 0) {
-			pathToMasks = argv[numberOfSeedPointsIndex + numberOfSeedPoints + 1];
-			mask = ReadImage(pathToMasks);
-			SaveImage(mask, pathToResults, "maski_obrazu");
-		}
-
-		if (!pathToMasks.empty())
+		for (int i = 1; i < argc; i++)
 		{
-			double diceResult = DiceResult(binaryClose, mask);
-			std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n";
+			if (strcmp(argv[i], "-c") == 0)
+			{
+				segmentationCoef = std::atoi(argv[i + 1]);
+			}
+			else if (strcmp(argv[i], "-cot") == 0)
+			{
+				segmentationCoef2 = std::atoi(argv[i + 1]);
+			}
+		}
+
+		// segmentation
+		std::vector<int> coordinationVektor = GetCoordinationArray(argv[seedPointsIndex]);
+		if (coordinationVektor.size() < 3) {
+			std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
+			return EXIT_FAILURE;
+		}
+
+		int x = coordinationVektor[0];
+		int y = coordinationVektor[1];
+		int z = coordinationVektor[2];
+
+		int numberOfPixel = 2;
+		int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
+		int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
+
+		logs += ("Srednia wokó³ punktu: " + std::to_string(mean));
+		logs += ("Odchylenie standardowe wokó³ punktu: " + std::to_string(stv));
+
+		int low = mean - (segmentationCoef * stv);
+		int up = mean + (segmentationCoef * stv);
+
+		ImageType::Pointer connectedThreshold = ConnectedThreshold(imageSharped, x, y, z, low, up);
+		SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji"));
+		segmentedImages.push_back(connectedThreshold);
+
+		ImageType::Pointer segmentationResultImage = connectedThreshold;
+
+		ImageType::Pointer binaryOpen;
+		ImageType::Pointer binaryClose;
+
+		for (int i = 1; i < argc; i++)
+		{
+			if (strcmp(argv[i], "-ot") == 0)
+			{
+				std::vector<int> coordinationVektor = GetCoordinationArray(argv[i + 1]);
+				if (coordinationVektor.size() < 3) {
+					std::cout << GetArgumentInfoMessage("Za ma³o punktów startowych\t\n");
+					return EXIT_FAILURE;
+				}
+
+				int x = coordinationVektor[0];
+				int y = coordinationVektor[1];
+				int z = coordinationVektor[2];
+
+				int numberOfPixel = 2;
+				int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
+				int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
+
+				logs += "Srednia otoczki: " + std::to_string(mean) + "\t\n";
+				logs += "Odchylenie standardowe otoczki: " + std::to_string(stv) + "\t\n";
+
+				int low = mean - (segmentationCoef2 * stv);
+				int up = mean + (segmentationCoef2 * stv);
+
+				ImageType::Pointer connectedThreshold = ConnectedThreshold(histogramMatched, x, y, z, low, up);
+				segmentedImages.push_back(connectedThreshold);
+				SaveImage(connectedThreshold, pathToResults, ("segmentacja_otoczki"));
+
+				segmentationResultImage = GetLogicSumImage(segmentedImages);
+				SaveImage(segmentationResultImage, pathToResults, "suma_masek_obrazu");
+
+				binaryOpen = BinaryOpen(segmentationResultImage);
+				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+
+				binaryClose = BinaryClose(binaryOpen);
+				SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
+			}
+			else if (strcmp(argv[i], "-D") == 0)
+			{
+				string pathToMasks = argv[i + 1];
+				ImageType::Pointer mask = ReadImage(pathToMasks);
+				SaveImage(mask, pathToResults, "maski_obrazu");
+
+				double diceResult = DiceResult(binaryClose, mask);
+				std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n\t\n\t\n";
+				logs += "Wspó³czynnik DICE: " + std::to_string(diceResult);
+			}
+			else if (strcmp(argv[i], "-v") == 0)
+			{
+				std::cout << logs;
+			}
 		}
 
 		std::cout << "Koniec" << std::endl;
@@ -198,12 +241,7 @@ typename ImageType::Pointer ReadImage(string pathToImages) {
 	int imagesSizeInDir = gdcmSeriesFileNames->GetFileNames(series[0]).size();
 
 	int counter = 0;
-	std::cout << "Sciezki do plikow" << std::endl;
-	for (string x : gdcmSeriesFileNames->GetFileNames(series[0])) {
-		std::cout << x << std::endl;
-		counter++;
-	}
-
+	logs += ("\t\nPrzyk³adowy odczytany plik: " + gdcmSeriesFileNames->GetFileNames(series[0])[0]);
 	ReaderTypeSeries::Pointer seriesReader = ReaderTypeSeries::New();
 	seriesReader->SetFileNames(gdcmSeriesFileNames->GetFileNames(series[0]));
 	seriesReader->Update();
@@ -221,16 +259,15 @@ void SaveImage(ImageType::Pointer resultImage, string pathToResults, string file
 	seriesWriter->Update();
 
 	std::cout << "Zapisano obraz o nazwie: " << fileName << "\t\n";
+	logs += "Zapisano obraz o nazwie: " + fileName + "\t\n";
 }
-
-
 #pragma endregion
 
 #pragma region Preprocessing
 
 typename ImageType::Pointer AnisotrophyDyfusion(ImageType::Pointer image) {
 
-	unsigned int numberOfIteration = 5; // typically set to 5;
+	unsigned int numberOfIteration = 10; // typically set to 5;
 	double conductanceParameter = 8;
 	double timeStep = 0.02; // Typical values for the time step are 0.25 in 2D images and 0.125 in 3D images. T
 
@@ -270,16 +307,14 @@ typename ImageType::Pointer HistogramMatching(ImageType::Pointer image, ImageTyp
 	filter->SetNumberOfHistogramLevels(1024); //ustawia liczbê pojemników u¿ywanych podczas tworzenia histogramów obrazów Ÿród³owych i referencyjnych.
 	filter->SetNumberOfMatchPoints(10); // reguluje liczbê dopasowywanych wartoœci kwantyli.
 
-
 	filter->Update();
 	return filter->GetOutput();
 }
-
 #pragma endregion
 
 #pragma region Segmentation
 
-typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, int y, int z, int low, int up) {
+typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, int y, int z, int downside, int upside) {
 
 	using ConnectedFilterType = itk::ConnectedThresholdImageFilter<ImageType, ImageType>;
 	ConnectedFilterType::Pointer connectedThreshold = ConnectedFilterType::New();
@@ -291,11 +326,11 @@ typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, 
 	connectedThreshold->SetSeed(index);
 	connectedThreshold->SetReplaceValue(255);
 
-	connectedThreshold->SetLower(low);
-	connectedThreshold->SetUpper(up);
+	connectedThreshold->SetLower(downside);
+	connectedThreshold->SetUpper(upside);
 
 	connectedThreshold->Update();
-	SaveImage(connectedThreshold->GetOutput(), "..\\wyniki\\1", "obraz_po_segmentacji_connectedthreshold_" + std::to_string(low) + std::to_string(up));
+	SaveImage(connectedThreshold->GetOutput(), "..\\wyniki\\temp", "obraz_po_segmentacji_connectedthreshold_" + std::to_string(downside) + std::to_string(upside));
 
 	return connectedThreshold->GetOutput();
 }
@@ -456,7 +491,7 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 		closingFilter->SetKernel(structuringElement);
 		closingFilter->Update();
 
-		SaveImage(closingFilter->GetOutput(), "..\\wyniki\\1", "obraz_po_domknieciu_" + std::to_string(radius));
+		SaveImage(closingFilter->GetOutput(), "..\\wyniki\\temp", "obraz_po_domknieciu_" + std::to_string(radius));
 
 		//low += 10;
 		radius += 1;
@@ -468,7 +503,6 @@ typename ImageType::Pointer BinaryClose(ImageType::Pointer image) {
 #pragma endregion
 
 #pragma region Walidacja
-
 double DiceResult(ImageType::Pointer segmented, ImageType::Pointer originMask) {
 
 	itk::LabelOverlapMeasuresImageFilter<ImageType>::Pointer overlap_filter = itk::LabelOverlapMeasuresImageFilter<ImageType>::New();

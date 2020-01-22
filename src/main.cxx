@@ -50,8 +50,8 @@ int CalculateStandardVariation(ImageType::Pointer image, int mean, int x, int y,
 int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int numberOfPixels);
 
 // segmentation
-int segmentationCoef = 1;
-int segmentationCoef2 = 0.4;
+double segmentationCoef = 1;
+double segmentationCoef2 = 0.4;
 ImageType::Pointer GetLogicSumImage(std::vector<ImageType::Pointer> images);
 typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, int y, int z, int downside, int updside);
 typename ImageType::Pointer ConfidenceConnected(ImageType::Pointer image, int x, int y, int z);
@@ -126,11 +126,11 @@ int main(int argc, char *argv[]) {
 		{
 			if (strcmp(argv[i], "-c") == 0)
 			{
-				segmentationCoef = std::atoi(argv[i + 1]);
+				segmentationCoef = std::atof(argv[i + 1]);
 			}
 			else if (strcmp(argv[i], "-cot") == 0)
 			{
-				segmentationCoef2 = std::atoi(argv[i + 1]);
+				segmentationCoef2 = std::atof(argv[i + 1]);
 			}
 		}
 
@@ -330,7 +330,7 @@ typename ImageType::Pointer ConnectedThreshold(ImageType::Pointer image, int x, 
 	connectedThreshold->SetUpper(upside);
 
 	connectedThreshold->Update();
-	SaveImage(connectedThreshold->GetOutput(), "..\\wyniki\\temp", "obraz_po_segmentacji_connectedthreshold_" + std::to_string(downside) + std::to_string(upside));
+	SaveImage(connectedThreshold->GetOutput(), "../wyniki/temp", "obraz_po_segmentacji_connectedthreshold_" + std::to_string(downside) + std::to_string(upside));
 
 	return connectedThreshold->GetOutput();
 }

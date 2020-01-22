@@ -207,6 +207,14 @@ int main(int argc, char *argv[]) {
 				ImageType::Pointer mask = ReadImage(pathToMasks);
 				SaveImage(mask, pathToResults, "maski_obrazu");
 
+				if (!binaryClose) {
+					binaryOpen = BinaryOpen(segmentationResultImage);
+					SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+
+					binaryClose = BinaryClose(binaryOpen);
+					SaveImage(binaryClose, pathToResults, "obraz_po_operacji_zamkniecia");
+				}
+
 				double diceResult = DiceResult(binaryClose, mask);
 				std::cout << "Wspó³czynnik DICE: " + std::to_string(diceResult) << "\t\n\t\n\t\n";
 				logs += "Wspó³czynnik DICE: " + std::to_string(diceResult);

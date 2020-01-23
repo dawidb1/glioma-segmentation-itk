@@ -71,17 +71,17 @@ string logs = "";
 string GetArgumentInfoMessage(string message) {
 	std::stringstream error;
 	error << message
-		<< "GliomaSegmentation: P�automatyczna metoda segmentacji glejaka wielorozdzielczego \t\n"
+		<< "GliomaSegmentation: Polautomatyczna metoda segmentacji glejaka wielorozdzielczego \t\n"
 		<< ""
 		<< "Argumenty: \t\n"
 		<< "- sciezka do folderu z seria plikow DICOM \t\n"
 		<< "- sciezka do folderu wynikowego \t\n"
 		<< "- punkty startowe segmentacji x;y;z \t\n"
 		<< ""
-		<< "[-c] - wsp�czynnik progu"
-		<< "[-ot] - otoczka wypuk�a z punktami startowymi segmentacji x;y;z"
-		<< "[-cot] - wsp�czynnik progu otoczki wypuk�ej"
-		<< "[-D] - sciezka do folderu z seria plikow masek eksperckich, wedlug kt�rych zostanie obliczona wartosc DICE";
+		<< "[-c] - wspoczynnik progu \t\n"
+		<< "[-ot] - otoczka wypukla z punktami startowymi segmentacji x;y;z \t\n"
+		<< "[-cot] - wspoczynnik progu otoczki wypuklej \t\n"
+		<< "[-D] - sciezka do folderu z seria plikow masek eksperckich, wedlug ktorych zostanie obliczona wartosc DICE \t\n";
 
 	return error.str();
 }
@@ -232,8 +232,8 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		if (!binaryOpen) {
-				binaryOpen = BinaryOpen(segmentationResultImage);
-				SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
+			binaryOpen = BinaryOpen(segmentationResultImage);
+			SaveImage(binaryOpen, pathToResults, "obraz_po_operacji_otwarcia");
 		}
 
 		std::cout << "Koniec\t\n\t\n" << std::endl;

@@ -1,7 +1,7 @@
 //General
-#include <iostream> // std::cout, std::cin
-#include <string> // std::string
-#include <itkImage.h> // itk::Image
+#include <iostream> 
+#include <string> 
+#include <itkImage.h> 
 //Read Write
 #include<itkImageSeriesReader.h>
 #include<itkImageSeriesWriter.h>
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
 		string pathToImages = argv[pathToImagesIndex];
 		string pathToResults = argv[pathToResultIndex];
 
-		std::cout << "Obraz wej�ciowy: " << pathToImages << "\t\n";
+		std::cout << "Obraz wejsciowy: " << pathToImages << "\t\n";
 
 		std::vector<ImageType::Pointer> segmentedImages;
 
@@ -118,10 +118,10 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer anisotrophyDyfusion = AnisotrophyDyfusion(image);
 		SaveImage(anisotrophyDyfusion, pathToResults, "obraz_po_dyfuzji");
 
-		//ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
-		//SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
+		ImageType::Pointer imageSharped = ImageSharpening(anisotrophyDyfusion);
+		SaveImage(imageSharped, pathToResults, "obraz_po_wyostrzeniu");
 
-		ImageType::Pointer histogramMatched = HistogramMatching(anisotrophyDyfusion, image);
+		ImageType::Pointer histogramMatched = HistogramMatching(imageSharped, image);
 		SaveImage(histogramMatched, pathToResults, "obraz_po_korekcji_histogramu");
 
 		for (int i = 1; i < argc; i++)
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 		// segmentation
 		std::vector<int> coordinationVektor = GetCoordinationArray(argv[seedPointsIndex]);
 		if (coordinationVektor.size() < 3) {
-			std::cout << GetArgumentInfoMessage("Za ma�o punkt�w startowych\t\n");
+			std::cout << GetArgumentInfoMessage("Za malo punktow startowych\t\n");
 			return EXIT_FAILURE;
 		}
 
@@ -151,15 +151,15 @@ int main(int argc, char *argv[]) {
 		int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
 		int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
 
-		logs += ("Srednia wok� punktu: " + std::to_string(mean));
-		logs += ("Odchylenie standardowe wok� punktu: " + std::to_string(stv));
+		logs += ("Srednia intensywnosci pikseli wokol punktu: " + std::to_string(mean));
+		logs += ("Odchylenie standardowe intensywnosci pikseli wokol punktu: " + std::to_string(stv));
 
-		std::cout << "�rednia wok� punktu: " + std::to_string(mean) << "\t\n";
-		std::cout << "Odchylenie wok� punktu: " + std::to_string(stv) << "\t\n";
+		std::cout << "Srednia intensywnosci pikseli wokol punktu: " + std::to_string(mean) << "\t\n";
+		std::cout << "Odchylenie intensywnosci pikseli wokol punktu: " + std::to_string(stv) << "\t\n";
 
 		int low = mean - (segmentationCoef * stv);
 		int up = mean + (segmentationCoef * stv);
-		std::cout << "Wsp�czynnik progu otoczki: " + std::to_string(segmentationCoef) << "\t\n";
+		std::cout << "Wspoczynnik progu otoczki: " + std::to_string(segmentationCoef) << "\t\n";
 
 		ImageType::Pointer connectedThreshold = ConnectedThreshold(histogramMatched, x, y, z, low, up);
 		SaveImage(connectedThreshold, pathToResults, ("obraz_po_segmentacji"));
@@ -168,7 +168,6 @@ int main(int argc, char *argv[]) {
 		ImageType::Pointer segmentationResultImage = connectedThreshold;
 
 		ImageType::Pointer binaryOpen;
-		ImageType::Pointer binaryClose;
 
 		for (int i = 1; i < argc; i++)
 		{
@@ -176,7 +175,7 @@ int main(int argc, char *argv[]) {
 			{
 				std::vector<int> coordinationVektor = GetCoordinationArray(argv[i + 1]);
 				if (coordinationVektor.size() < 3) {
-					std::cout << GetArgumentInfoMessage("Za ma�o punkt�w startowych\t\n");
+					std::cout << GetArgumentInfoMessage("Za malo punktow startowych\t\n");
 					return EXIT_FAILURE;
 				}
 
@@ -188,18 +187,18 @@ int main(int argc, char *argv[]) {
 				int mean = CalculatePixelMean(image, x, y, z, numberOfPixel);
 				int stv = CalculateStandardVariation(image, mean, x, y, z, numberOfPixel);
 
-				std::cout << "�rednia wok� otoczki: " + std::to_string(mean) << "\t\n";
-				std::cout << "Odchylenie wok� otoczki: " + std::to_string(stv) << "\t\n";
-				logs += "Srednia otoczki: " + std::to_string(mean) + "\t\n";
-				logs += "Odchylenie standardowe otoczki: " + std::to_string(stv) + "\t\n";
+				std::cout << "Srednia intensywnosci pikseli wokol otoczki: " + std::to_string(mean) << "\t\n";
+				std::cout << "Odchylenie standardowe intensywnosci pikseli wokol otoczki: " + std::to_string(stv) << "\t\n";
+				logs += "Srednia intensywnosci pikseli wokol otoczki: " + std::to_string(mean) + "\t\n";
+				logs += "Odchylenie standardowe intensywnosci pikseli wokol otoczki: " + std::to_string(stv) + "\t\n";
 
-				std::cout << "Wsp�czynnik progu otoczki: " + std::to_string(segmentationCoef2) << "\t\n";
+				std::cout << "Wspoczynnik progu otoczki: " + std::to_string(segmentationCoef2) << "\t\n";
 
-				int low = mean; // -(segmentationCoef2 * stv);
+				int low = mean -(segmentationCoef2 * stv);
 				int up = mean + (segmentationCoef2 * stv);
 
-				std::cout << "Pr�g dolny otoczki: " + std::to_string(low) << "\t\n";
-				std::cout << "Pr�g g�rny otoczki: " + std::to_string(up) << "\t\n";
+				std::cout << "Prog dolny otoczki: " + std::to_string(low) << "\t\n";
+				std::cout << "Prog gorny otoczki: " + std::to_string(up) << "\t\n";
 
 				ImageType::Pointer connectedThreshold = ConnectedThreshold(histogramMatched, x, y, z, low, up);
 				segmentedImages.push_back(connectedThreshold);
@@ -223,8 +222,8 @@ int main(int argc, char *argv[]) {
 				}
 
 				double diceResult = DiceResult(binaryOpen, mask);
-				std::cout << "Wsp�czynnik DICE: " + std::to_string(diceResult) << "\t\n\t\n\t\n";
-				logs += "Wsp�czynnik DICE: " + std::to_string(diceResult);
+				std::cout << "Wspoczynnik DICE: " + std::to_string(diceResult) << "\t\n\t\n\t\n";
+				logs += "Wspoczynnik DICE: " + std::to_string(diceResult);
 			}
 			else if (strcmp(argv[i], "-v") == 0)
 			{
@@ -260,7 +259,7 @@ typename ImageType::Pointer ReadImage(string pathToImages) {
 	int imagesSizeInDir = gdcmSeriesFileNames->GetFileNames(series[0]).size();
 
 	int counter = 0;
-	logs += ("\t\nPrzyk�adowy odczytany plik: " + gdcmSeriesFileNames->GetFileNames(series[0])[0]);
+	logs += ("\t\nPrzykladowy odczytany plik: " + gdcmSeriesFileNames->GetFileNames(series[0])[0]);
 	ReaderTypeSeries::Pointer seriesReader = ReaderTypeSeries::New();
 	seriesReader->SetFileNames(gdcmSeriesFileNames->GetFileNames(series[0]));
 	seriesReader->Update();
@@ -413,7 +412,7 @@ int CalculatePixelMean(ImageType::Pointer image, int x, int y, int z, int number
 	index[1] = y;
 	index[2] = z;
 
-	std::cout << "Warto�� wskazanego piksela: " + std::to_string(image->GetPixel(index)) << "\t\n";
+	std::cout << "Wartosc intensywnosci wskazanego piksela: " + std::to_string(image->GetPixel(index)) << "\t\n";
 
 
 	int sum = 0;
